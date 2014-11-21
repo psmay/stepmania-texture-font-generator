@@ -53,6 +53,9 @@ protected:
 	float getFontSizePixels();
 	int getPadding();
 
+private:	
+	TextureFont * textureFont;
+
 public:
 	vector<FontPageDescription> m_PagesToGenerate;
 

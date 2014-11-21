@@ -15,20 +15,17 @@ using namespace std;
 
 #include <math.h>
 
-static TextureFont *g_pTextureFont = NULL;
-
-
 IMPLEMENT_DYNAMIC(CTextureFontGeneratorDlg, CDialog);
 CTextureFontGeneratorDlg::CTextureFontGeneratorDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CTextureFontGeneratorDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 
-	g_pTextureFont = new TextureFont;
+	textureFont = new TextureFont;
 }
 CTextureFontGeneratorDlg::~CTextureFontGeneratorDlg()
 {
-	delete g_pTextureFont;
+	delete textureFont;
 }
 
 void CTextureFontGeneratorDlg::DoDataExchange(CDataExchange* pDX)
@@ -176,27 +173,27 @@ void CTextureFontGeneratorDlg::UpdateFont( bool bSavingDoubleRes )
 	wstring sOld;
 	{
 		int iOldSel = m_ShownPage.GetCurSel();
-		if( iOldSel != -1 && iOldSel < (int) g_pTextureFont->m_PagesToGenerate.size() )
-			sOld = g_pTextureFont->m_PagesToGenerate[iOldSel].name;
+		if( iOldSel != -1 && iOldSel < (int) textureFont->m_PagesToGenerate.size() )
+			sOld = textureFont->m_PagesToGenerate[iOldSel].name;
 	}
 
-	g_pTextureFont->m_sFamily = getFamily();
-	g_pTextureFont->m_fFontSizePixels = getFontSizePixels() * (bSavingDoubleRes ? 2.0f : 1.0f);
-	g_pTextureFont->m_iPadding = getPadding() * (bSavingDoubleRes ? 2 : 1);
-	g_pTextureFont->m_bBold = isBold();
-	g_pTextureFont->m_bItalic = isItalic();
-	g_pTextureFont->m_bAntiAlias = isAntialiased();
-	g_pTextureFont->m_PagesToGenerate = generate_font_page_descs(isNumbersOnly());
+	textureFont->m_sFamily = getFamily();
+	textureFont->m_fFontSizePixels = getFontSizePixels() * (bSavingDoubleRes ? 2.0f : 1.0f);
+	textureFont->m_iPadding = getPadding() * (bSavingDoubleRes ? 2 : 1);
+	textureFont->m_bBold = isBold();
+	textureFont->m_bItalic = isItalic();
+	textureFont->m_bAntiAlias = isAntialiased();
+	textureFont->m_PagesToGenerate = generate_font_page_descs(isNumbersOnly());
 
 	/* Go: */
-	g_pTextureFont->FormatFontPages();
+	textureFont->FormatFontPages();
 
-	m_SpinTop.SetPos( g_pTextureFont->m_iCharTop );
-	m_SpinBaseline.SetPos( g_pTextureFont->m_iCharBaseline );
+	m_SpinTop.SetPos( textureFont->m_iCharTop );
+	m_SpinBaseline.SetPos( textureFont->m_iCharBaseline );
 
 	m_ShownPage.ResetContent();
-	for( unsigned p = 0; p < g_pTextureFont->m_PagesToGenerate.size(); ++p )
-		m_ShownPage.AddString( CString(g_pTextureFont->m_PagesToGenerate[p].name.c_str()).GetString() );
+	for( unsigned p = 0; p < textureFont->m_PagesToGenerate.size(); ++p )
+		m_ShownPage.AddString( CString(textureFont->m_PagesToGenerate[p].name.c_str()).GetString() );
 	int iRet = m_ShownPage.FindStringExact( -1, CString(sOld.c_str()).GetString() );
 	if( iRet == CB_ERR )
 		iRet = 0;
@@ -210,7 +207,7 @@ void CTextureFontGeneratorDlg::UpdateCloseUp()
 	if( hBitmap )
 		DeleteObject( hBitmap );
 
-	HBITMAP hSample = g_pTextureFont->m_Characters[L'A'];
+	HBITMAP hSample = textureFont->m_Characters[L'A'];
 	if( hSample == NULL )
 		return;
 
@@ -226,7 +223,7 @@ void CTextureFontGeneratorDlg::UpdateCloseUp()
 	int iHeight = CharacterInfo.bmiHeader.biHeight;
 
 	/* Set up a bitmap to zoom the image into. */
-	int iSourceHeight = g_pTextureFont->m_BoundingRect.bottom;
+	int iSourceHeight = textureFont->m_BoundingRect.bottom;
 	const int iZoomFactor = 4;
 
 	HBITMAP hZoom;
@@ -253,7 +250,7 @@ void CTextureFontGeneratorDlg::UpdateCloseUp()
 
 	/* Align the line with the top of the unit, so, when correct, the font
 	 * "sits" on the line. */
-	int iY = iZoomFactor*g_pTextureFont->m_iCharBaseline - 1;
+	int iY = iZoomFactor*textureFont->m_iCharBaseline - 1;
 	MoveToEx( hZoomDC, 0, iY, NULL );
 	LineTo( hZoomDC, iWidth * iZoomFactor, iY );
 
@@ -265,7 +262,7 @@ void CTextureFontGeneratorDlg::UpdateCloseUp()
 	
 	/* Align the line with the bottom of the unit, so, when correct, the line
 	 * "sits" on the font. */
-	iY = iZoomFactor*g_pTextureFont->m_iCharTop - 1;
+	iY = iZoomFactor*textureFont->m_iCharTop - 1;
 	MoveToEx( hZoomDC, 0, iY, NULL );
 	LineTo( hZoomDC, iWidth * iZoomFactor, iY );
 
@@ -339,37 +336,37 @@ void CTextureFontGeneratorDlg::UpdateFontViewAndCloseUp()
 	m_SpinBaseline.EnableWindow( true );
 	GetMenu()->EnableMenuItem( ID_FILE_SAVE, MF_ENABLED );
 
-	if( g_pTextureFont->m_sError != L"" )
+	if( textureFont->m_sError != L"" )
 	{
 		m_SpinTop.EnableWindow(false);
 		m_SpinBaseline.EnableWindow(false);
 		GetMenu()->EnableMenuItem( ID_FILE_SAVE, MF_GRAYED );
 
 		wstring errorMessage(L"Error: ");
-		errorMessage += g_pTextureFont->m_sError;
+		errorMessage += textureFont->m_sError;
 
-		set_window_text(m_ErrorOrWarning, wstring(L"Error: ") + g_pTextureFont->m_sError);
+		set_window_text(m_ErrorOrWarning, wstring(L"Error: ") + textureFont->m_sError);
 		return;
 	}
 
-	set_window_text(m_ErrorOrWarning, g_pTextureFont->m_sWarnings);
+	set_window_text(m_ErrorOrWarning, textureFont->m_sWarnings);
 
 	const int iSelectedPage = m_ShownPage.GetCurSel();
-	ASSERT( iSelectedPage < (int) g_pTextureFont->m_apPages.size() );
+	ASSERT( iSelectedPage < (int) textureFont->m_apPages.size() );
 
-	g_pTextureFont->m_iCharTop = LOWORD(m_SpinTop.GetPos());
-	g_pTextureFont->m_iCharBaseline = LOWORD(m_SpinBaseline.GetPos());
+	textureFont->m_iCharTop = LOWORD(m_SpinTop.GetPos());
+	textureFont->m_iCharBaseline = LOWORD(m_SpinBaseline.GetPos());
 
-	HBITMAP hBitmap = g_pTextureFont->m_apPages[iSelectedPage]->m_hPage;
+	HBITMAP hBitmap = textureFont->m_apPages[iSelectedPage]->m_hPage;
 	m_FontView.SetBitmap( hBitmap );
 	
 	UpdateCloseUp();
 
 	CString sStr;
 	sStr.Format("Overlap: %i, %i\nMaximum size: %ix%i", 
-		g_pTextureFont->m_iCharLeftOverlap, g_pTextureFont->m_iCharRightOverlap,
-		g_pTextureFont->m_BoundingRect.right - g_pTextureFont->m_BoundingRect.left,
-		g_pTextureFont->m_BoundingRect.bottom - g_pTextureFont->m_BoundingRect.top
+		textureFont->m_iCharLeftOverlap, textureFont->m_iCharRightOverlap,
+		textureFont->m_BoundingRect.right - textureFont->m_BoundingRect.left,
+		textureFont->m_BoundingRect.bottom - textureFont->m_BoundingRect.top
 		);
 	m_TextOverlap.SetWindowText( sStr );
 }
@@ -588,7 +585,7 @@ wstring get_default_save_file_name(TextureFont * textureFont)
 	return ss.str();
 }
 
-inline wstring show_file_save_dialog(HWND owner)
+inline wstring show_file_save_dialog(HWND owner, TextureFont * textureFont)
 {
 	// XXX
 	OPENFILENAME ofn;
@@ -601,7 +598,7 @@ inline wstring show_file_save_dialog(HWND owner)
 	
 	ofn.lpstrFile = szFile;
 	{
-		wstring saveFileName = get_default_save_file_name(g_pTextureFont);
+		wstring saveFileName = get_default_save_file_name(textureFont);
 		strncpy(szFile, CString(saveFileName.c_str()).GetString(), sizeof(szFile) - 1);
 	}
 	ofn.nMaxFile = sizeof(szFile);
@@ -624,7 +621,7 @@ inline wstring show_file_save_dialog(HWND owner)
 
 void CTextureFontGeneratorDlg::OnFileSave()
 {
-	wstring filename = show_file_save_dialog(m_hWnd);
+	wstring filename = show_file_save_dialog(m_hWnd, textureFont);
 	if(filename == L"")
 		return;
 
@@ -633,9 +630,9 @@ void CTextureFontGeneratorDlg::OnFileSave()
 
 	if( bDoubleRes )
 	{
-		g_pTextureFont->Save( filename, L"", true, false, bExportStrokeTemplates );	// save metrics
+		textureFont->Save( filename, L"", true, false, bExportStrokeTemplates );	// save metrics
 		UpdateFont( true );	// generate DoubleRes bitmaps
-		g_pTextureFont->Save( filename, L" (doubleres)", false, true, bExportStrokeTemplates );	// save bitmaps
+		textureFont->Save( filename, L" (doubleres)", false, true, bExportStrokeTemplates );	// save bitmaps
 		// reset to normal, non-DoubleRes font
 		m_bUpdateFontNeeded = true;
 		Invalidate( FALSE );
@@ -643,7 +640,7 @@ void CTextureFontGeneratorDlg::OnFileSave()
 	}
 	else	// normal res
 	{
-		g_pTextureFont->Save( filename, L"", true, true, bExportStrokeTemplates );	// save metrics and bitmaps
+		textureFont->Save( filename, L"", true, true, bExportStrokeTemplates );	// save metrics and bitmaps
 	}
 }
 
