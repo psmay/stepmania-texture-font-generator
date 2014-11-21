@@ -69,6 +69,89 @@ BEGIN_MESSAGE_MAP(CTextureFontGeneratorDlg, CDialog)
 	ON_COMMAND(ID_OPTIONS_NUMBERSONLY, &CTextureFontGeneratorDlg::OnOptionsNumbersonly)
 END_MESSAGE_MAP()
 
+inline FontPageDescription generate_font_page_desc(const CString & name, const wchar_t * map)
+{
+	FontPageDescription desc;
+
+	desc.name = name;
+	for( int i = 0; map[i]; ++i )
+	{
+		wchar_t wc = map[i];
+		if( wc != 0xFFFF )
+			desc.chars.push_back(wc);
+	}
+
+	return desc;
+}
+
+inline vector<FontPageDescription> generate_font_page_descs(bool bNumbersOnly)
+{
+	vector<FontPageDescription> descs;
+
+	if( !bNumbersOnly )
+	{
+		descs.push_back(generate_font_page_desc("main", map_cp1252));
+		descs.push_back(generate_font_page_desc("alt", map_iso_8859_2));
+	}
+	else
+	{
+		descs.push_back(generate_font_page_desc("numbers", map_numbers));
+	}
+
+	return descs;
+}
+
+inline CString get_text(CWnd & window)
+{
+	CString text;
+	window.GetWindowText(text);
+	return text;
+}
+
+inline bool get_checked(CMenu * pMenu, UINT item)
+{
+	return !!(pMenu->GetMenuState(item, 0) & MF_CHECKED);
+}
+
+bool CTextureFontGeneratorDlg::isChecked(UINT item)
+{
+	return get_checked(GetMenu(), item);
+}
+
+bool CTextureFontGeneratorDlg::isBold()
+{
+	return isChecked(ID_STYLE_BOLD);
+}
+
+bool CTextureFontGeneratorDlg::isItalic()
+{
+	return isChecked(ID_STYLE_ITALIC);
+}
+
+bool CTextureFontGeneratorDlg::isAntialiased()
+{
+	return isChecked(ID_STYLE_ANTIALIASED);
+}
+
+bool CTextureFontGeneratorDlg::isNumbersOnly()
+{
+	return isChecked(ID_OPTIONS_NUMBERSONLY);
+}
+
+CString CTextureFontGeneratorDlg::getFamily()
+{
+	return get_text(m_FamilyList);
+}
+
+float CTextureFontGeneratorDlg::getFontSizePixels()
+{
+	return (float) atof(get_text(m_FontSize));
+}
+
+int CTextureFontGeneratorDlg::getPadding()
+{
+	return atoi(get_text(m_Padding));
+}
 
 /* Regenerate the font, pulling in settings from widgets. */
 void CTextureFontGeneratorDlg::UpdateFont( bool bSavingDoubleRes )
@@ -84,66 +167,13 @@ void CTextureFontGeneratorDlg::UpdateFont( bool bSavingDoubleRes )
 			sOld = g_pTextureFont->m_PagesToGenerate[iOldSel].name;
 	}
 
-	/* Get the selected font m_sFamily. */
-	CString sText;
-	m_FamilyList.GetWindowText( sText );
-	g_pTextureFont->m_sFamily = sText;
-	
-	m_FontSize.GetWindowText(sText);
-	g_pTextureFont->m_fFontSizePixels = (float) atof(sText);
-	if( bSavingDoubleRes )
-		g_pTextureFont->m_fFontSizePixels *= 2;
-	
-	m_Padding.GetWindowText(sText);
-	g_pTextureFont->m_iPadding = atoi(sText);
-	if( bSavingDoubleRes )
-		g_pTextureFont->m_iPadding *= 2;
-
-	CMenu *pMenu = GetMenu();
-	g_pTextureFont->m_bBold = !!( pMenu->GetMenuState(ID_STYLE_BOLD, 0) & MF_CHECKED );
-	g_pTextureFont->m_bItalic = !!( pMenu->GetMenuState(ID_STYLE_ITALIC, 0) & MF_CHECKED );
-	g_pTextureFont->m_bAntiAlias = !!( pMenu->GetMenuState(ID_STYLE_ANTIALIASED, 0) & MF_CHECKED );
-
-	g_pTextureFont->m_PagesToGenerate.clear();
-	FontPageDescription desc;
-
-	bool bNumbersOnly = !!( pMenu->GetMenuState(ID_OPTIONS_NUMBERSONLY, 0) & MF_CHECKED );
-
-	// todo: add support for JAPANS
-
-	if( !bNumbersOnly )
-	{
-		desc.name = "main";
-		for( int i = 0; map_cp1252[i]; ++i )
-		{
-			wchar_t wc = map_cp1252[i];
-			if( wc != 0xFFFF )
-				desc.chars.push_back(wc);
-		}
-		g_pTextureFont->m_PagesToGenerate.push_back( desc );
-
-		desc.name = "alt";
-		desc.chars.clear();
-		for( int i = 0; map_iso_8859_2[i]; ++i )
-		{
-			wchar_t wc = map_iso_8859_2[i];
-			if( wc != 0xFFFF )
-				desc.chars.push_back(wc);
-		}
-		g_pTextureFont->m_PagesToGenerate.push_back( desc );
-	}
-	else
-	{
-		desc.name = "numbers";
-		desc.chars.clear();
-		for( int i = 0; map_numbers[i]; ++i )
-		{
-			wchar_t wc = map_numbers[i];
-			if( wc != 0xFFFF )
-				desc.chars.push_back(wc);
-		}
-		g_pTextureFont->m_PagesToGenerate.push_back( desc );
-	}
+	g_pTextureFont->m_sFamily = getFamily();
+	g_pTextureFont->m_fFontSizePixels = getFontSizePixels() * (bSavingDoubleRes ? 2.0f : 1.0f);
+	g_pTextureFont->m_iPadding = getPadding() * (bSavingDoubleRes ? 2 : 1);
+	g_pTextureFont->m_bBold = isBold();
+	g_pTextureFont->m_bItalic = isItalic();
+	g_pTextureFont->m_bAntiAlias = isAntialiased();
+	g_pTextureFont->m_PagesToGenerate = generate_font_page_descs(isNumbersOnly());
 
 	/* Go: */
 	g_pTextureFont->FormatFontPages();

@@ -41,6 +41,15 @@ protected:
 	void UpdateFont( bool bSavingDoubleRes );
 	void UpdateCloseUp();
 
+	bool isChecked(UINT id);
+	bool isBold();
+	bool isItalic();
+	bool isAntialiased();
+	bool isNumbersOnly();
+	CString getFamily();
+	float getFontSizePixels();
+	int getPadding();
+
 public:
 	vector<FontPageDescription> m_PagesToGenerate;
 
