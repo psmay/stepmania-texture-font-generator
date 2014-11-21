@@ -11,6 +11,13 @@ In my opinion, having a GUI at all is secondary to having the software working a
 
 Alternatively, once I've isolated the useful parts of the application, it might be simple enough to port to Java or Python.
 
+Building
+--------
+
+I've removed all of the existing VS projects/solutions (for 2005-2010) and added one for 2012 since that is what I'm using (and the objective is to discard that also, eventually).
+
+Because this isn't part of a `stepmania` build, you'll need to have `libpng` and `zlib` installed in a directory parallel to this one named `libpng-and-zlib`. Using the Windows installers for those libraries works fine (and using the ones with `stepmania` doesn't); just install to `../libpng-and-zlib/libpng` and `../libpng-and-zlib/zlib`, respectively.
+
 License
 -------
 
