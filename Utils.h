@@ -1,6 +1,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <string>
+
 inline float truncf( float f )	{ return float(int(f)); };
 inline float roundf( float f )	{ if(f < 0) return truncf(f-0.5f); return truncf(f+0.5f); };
 
@@ -30,6 +32,8 @@ void GrayScaleToAlpha( Surface *pSurf );
 void GetBounds( const Surface *pSurf, RECT *out );
 
 bool SavePNG( FILE *f, char szErrorbuf[1024], const Surface *pSurf );
+
+std::string NarrowString(const std::wstring & input);
 
 #endif
 

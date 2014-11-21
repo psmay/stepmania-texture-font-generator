@@ -6,8 +6,10 @@
 
 #include "charmaps.h"
 
+#include <algorithm>
 #include <vector>
 #include <fstream>
+#include <sstream>
 #include <set>
 using namespace std;
 
@@ -69,7 +71,7 @@ BEGIN_MESSAGE_MAP(CTextureFontGeneratorDlg, CDialog)
 	ON_COMMAND(ID_OPTIONS_NUMBERSONLY, &CTextureFontGeneratorDlg::OnOptionsNumbersonly)
 END_MESSAGE_MAP()
 
-inline FontPageDescription generate_font_page_desc(const CString & name, const wchar_t * map)
+inline FontPageDescription generate_font_page_desc(const wstring & name, const wchar_t * map)
 {
 	FontPageDescription desc;
 
@@ -90,22 +92,23 @@ inline vector<FontPageDescription> generate_font_page_descs(bool bNumbersOnly)
 
 	if( !bNumbersOnly )
 	{
-		descs.push_back(generate_font_page_desc("main", map_cp1252));
-		descs.push_back(generate_font_page_desc("alt", map_iso_8859_2));
+		descs.push_back(generate_font_page_desc(L"main", map_cp1252));
+		descs.push_back(generate_font_page_desc(L"alt", map_iso_8859_2));
 	}
 	else
 	{
-		descs.push_back(generate_font_page_desc("numbers", map_numbers));
+		descs.push_back(generate_font_page_desc(L"numbers", map_numbers));
 	}
 
 	return descs;
 }
 
-inline CString get_text(CWnd & window)
+inline wstring get_text(CWnd & window)
 {
 	CString text;
 	window.GetWindowText(text);
-	return text;
+	CStringW result(text);
+	return result.GetString();
 }
 
 inline bool get_checked(CMenu * pMenu, UINT item)
@@ -138,19 +141,29 @@ bool CTextureFontGeneratorDlg::isNumbersOnly()
 	return isChecked(ID_OPTIONS_NUMBERSONLY);
 }
 
-CString CTextureFontGeneratorDlg::getFamily()
+bool CTextureFontGeneratorDlg::exportsStrokeTemplates()
+{
+	return isChecked(ID_OPTIONS_EXPORTSTROKETEMPLATES);
+}
+
+bool CTextureFontGeneratorDlg::doubleRes()
+{
+	return isChecked(ID_OPTIONS_DOUBLERES);
+}
+
+wstring CTextureFontGeneratorDlg::getFamily()
 {
 	return get_text(m_FamilyList);
 }
 
 float CTextureFontGeneratorDlg::getFontSizePixels()
 {
-	return (float) atof(get_text(m_FontSize));
+	return (float) wcstod(get_text(m_FontSize).c_str(), NULL);
 }
 
 int CTextureFontGeneratorDlg::getPadding()
 {
-	return atoi(get_text(m_Padding));
+	return (int) wcstol(get_text(m_Padding).c_str(), NULL, 10);
 }
 
 /* Regenerate the font, pulling in settings from widgets. */
@@ -160,7 +173,7 @@ void CTextureFontGeneratorDlg::UpdateFont( bool bSavingDoubleRes )
 
 	m_FontView.SetBitmap( NULL );
 
-	CString sOld;
+	wstring sOld;
 	{
 		int iOldSel = m_ShownPage.GetCurSel();
 		if( iOldSel != -1 && iOldSel < (int) g_pTextureFont->m_PagesToGenerate.size() )
@@ -183,8 +196,8 @@ void CTextureFontGeneratorDlg::UpdateFont( bool bSavingDoubleRes )
 
 	m_ShownPage.ResetContent();
 	for( unsigned p = 0; p < g_pTextureFont->m_PagesToGenerate.size(); ++p )
-		m_ShownPage.AddString( g_pTextureFont->m_PagesToGenerate[p].name.GetString() );
-	int iRet = m_ShownPage.FindStringExact( -1, sOld );
+		m_ShownPage.AddString( CString(g_pTextureFont->m_PagesToGenerate[p].name.c_str()).GetString() );
+	int iRet = m_ShownPage.FindStringExact( -1, CString(sOld.c_str()).GetString() );
 	if( iRet == CB_ERR )
 		iRet = 0;
 	m_ShownPage.SetCurSel( iRet );
@@ -312,6 +325,11 @@ BOOL CTextureFontGeneratorDlg::OnInitDialog()
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
+inline void set_window_text(CWnd & window, const wstring & text)
+{
+	window.SetWindowText(CString(text.c_str()).GetString());
+}
+
 void CTextureFontGeneratorDlg::UpdateFontViewAndCloseUp()
 {
 	m_bUpdateFontViewAndCloseUpNeeded = false;
@@ -321,17 +339,20 @@ void CTextureFontGeneratorDlg::UpdateFontViewAndCloseUp()
 	m_SpinBaseline.EnableWindow( true );
 	GetMenu()->EnableMenuItem( ID_FILE_SAVE, MF_ENABLED );
 
-	if( g_pTextureFont->m_sError != "" )
+	if( g_pTextureFont->m_sError != L"" )
 	{
 		m_SpinTop.EnableWindow(false);
 		m_SpinBaseline.EnableWindow(false);
 		GetMenu()->EnableMenuItem( ID_FILE_SAVE, MF_GRAYED );
 
-		m_ErrorOrWarning.SetWindowText( "Error: " + g_pTextureFont->m_sError );
+		wstring errorMessage(L"Error: ");
+		errorMessage += g_pTextureFont->m_sError;
+
+		set_window_text(m_ErrorOrWarning, wstring(L"Error: ") + g_pTextureFont->m_sError);
 		return;
 	}
 
-	m_ErrorOrWarning.SetWindowText( g_pTextureFont->m_sWarnings );
+	set_window_text(m_ErrorOrWarning, g_pTextureFont->m_sWarnings);
 
 	const int iSelectedPage = m_ShownPage.GetCurSel();
 	ASSERT( iSelectedPage < (int) g_pTextureFont->m_apPages.size() );
@@ -551,24 +572,37 @@ void CTextureFontGeneratorDlg::OnDeltaposSpinBaseline(NMHDR *pNMHDR, LRESULT *pR
 	Invalidate( FALSE );
 }
 
-void CTextureFontGeneratorDlg::OnFileSave()
+wstring get_default_save_file_name(TextureFont * textureFont)
+{
+	wstring sName = textureFont->m_sFamily;
+	transform(sName.begin(), sName.end(), sName.begin(), ::tolower);
+
+	wostringstream ss;
+	ss << L"_"
+		<< sName
+		<< (textureFont->m_bBold ? " Bold" : "")
+		<< (textureFont->m_bItalic ? " Italic" : "")
+		<< textureFont->m_fFontSizePixels
+		<< "px";
+
+	return ss.str();
+}
+
+inline wstring show_file_save_dialog(HWND owner)
 {
 	// XXX
 	OPENFILENAME ofn;
 	memset( &ofn, 0, sizeof(ofn) );
 	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = m_hWnd;
+	ofn.hwndOwner = owner;
 	ofn.lpstrFilter = "*.ini\000Font control files\000\000";
 
 	char szFile[1024] = "";
+	
 	ofn.lpstrFile = szFile;
 	{
-		CString sName = g_pTextureFont->m_sFamily;
-		sName.MakeLower();
-		_snprintf( szFile, 1023, "_%s%s %gpx", 
-			(const char *) sName, 
-			g_pTextureFont->m_bBold ? " Bold" : "",
-			g_pTextureFont->m_fFontSizePixels );
+		wstring saveFileName = get_default_save_file_name(g_pTextureFont);
+		strncpy(szFile, CString(saveFileName.c_str()).GetString(), sizeof(szFile) - 1);
 	}
 	ofn.nMaxFile = sizeof(szFile);
 
@@ -576,7 +610,7 @@ void CTextureFontGeneratorDlg::OnFileSave()
 	ofn.Flags = OFN_HIDEREADONLY|OFN_LONGNAMES;
 
 	if( !GetSaveFileName(&ofn) )
-		return;
+		return L"";
 
 	/* If the filename provided has an extension, remove it. */
 	{
@@ -585,34 +619,23 @@ void CTextureFontGeneratorDlg::OnFileSave()
 			*pExt = 0;
 	}
 
+	return wstring(CStringW(szFile).GetString());
+}
 
-/*	{
-		vector<CString> asOldFiles;
-		WIN32_FIND_DATA fd;
+void CTextureFontGeneratorDlg::OnFileSave()
+{
+	wstring filename = show_file_save_dialog(m_hWnd);
+	if(filename == L"")
+		return;
 
-		CString sPath = szFile;
-		HANDLE hFind = FindFirstFile( sPath+"*", &fd );
+	bool bExportStrokeTemplates = exportsStrokeTemplates();
+	bool bDoubleRes = doubleRes();
 
-		if( hFind != INVALID_HANDLE_VALUE )
-		{
-			do {
-				if( fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY )
-					continue;
-				asOldFiles.push_back( fd.cFileName );
-			} while( FindNextFile(hFind, &fd) );
-			FindClose( hFind );
-		}
-	}
-*/
-
-	CMenu *pMenu = GetMenu();
-	bool bExportStrokeTemplates = !!( pMenu->GetMenuState(ID_OPTIONS_EXPORTSTROKETEMPLATES, 0) & MF_CHECKED );
-	bool bDoubleRes = !!( pMenu->GetMenuState(ID_OPTIONS_DOUBLERES, 0) & MF_CHECKED );
 	if( bDoubleRes )
 	{
-		g_pTextureFont->Save( szFile, "", true, false, bExportStrokeTemplates );	// save metrics
+		g_pTextureFont->Save( filename, L"", true, false, bExportStrokeTemplates );	// save metrics
 		UpdateFont( true );	// generate DoubleRes bitmaps
-		g_pTextureFont->Save( szFile, " (doubleres)", false, true, bExportStrokeTemplates );	// save bitmaps
+		g_pTextureFont->Save( filename, L" (doubleres)", false, true, bExportStrokeTemplates );	// save bitmaps
 		// reset to normal, non-DoubleRes font
 		m_bUpdateFontNeeded = true;
 		Invalidate( FALSE );
@@ -620,7 +643,7 @@ void CTextureFontGeneratorDlg::OnFileSave()
 	}
 	else	// normal res
 	{
-		g_pTextureFont->Save( szFile, "", true, true, bExportStrokeTemplates );	// save metrics and bitmaps
+		g_pTextureFont->Save( filename, L"", true, true, bExportStrokeTemplates );	// save metrics and bitmaps
 	}
 }
 
@@ -631,6 +654,7 @@ void CTextureFontGeneratorDlg::OnFileExit()
 
 /*
  * Copyright (c) 2003-2007 Glenn Maynard
+ * Copyright (c) 2014 Peter S. May
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

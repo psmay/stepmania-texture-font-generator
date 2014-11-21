@@ -1,13 +1,14 @@
 #ifndef TEXTURE_FONT_H
 #define TEXTURE_FONT_H
 
+#include <string>
 #include <vector>
 #include <map>
 using namespace std;
 
 struct FontPageDescription
 {
-	CString name;
+	wstring name;
 	vector<wchar_t> chars;
 };
 
@@ -37,7 +38,7 @@ public:
 	vector<FontPageDescription> m_PagesToGenerate;
 	void FormatFontPage( int iPage, HDC hDC );
 	void FormatFontPages();
-	void Save( CString sPath, CString sBitmapAppendBeforeExtension, bool bSaveMetrics, bool bSaveBitmaps, bool bExportStrokeTemplates );
+	void Save( wstring sPath, wstring sBitmapAppendBeforeExtension, bool bSaveMetrics, bool bSaveBitmaps, bool bExportStrokeTemplates );
 
 	map<wchar_t, HBITMAP> m_Characters;
 
@@ -46,7 +47,7 @@ public:
 	bool m_bItalic;				/* whether font is italic */
 	bool m_bAntiAlias;			/* antialiasing type */
 	float m_fFontSizePixels;		/* font size in pixels */
-	CString m_sFamily;			/* font family */
+	wstring m_sFamily;			/* font family */
 	int m_iPadding;				/* empty padding between characters */
 
 	/* Derived properties: */
@@ -57,7 +58,7 @@ public:
 
 	vector<FontPage *> m_apPages;
 
-	CString m_sError, m_sWarnings;
+	wstring m_sError, m_sWarnings;
 
 private:
 	int GetTopPadding() const;

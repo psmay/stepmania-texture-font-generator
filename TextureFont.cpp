@@ -3,8 +3,10 @@
 #include "Utils.h"
 
 #include <fstream>
+#include <sstream>
 #include <math.h>
 #include <cassert>
+#include <locale>
 
 TextureFont::TextureFont()
 {
@@ -34,14 +36,16 @@ void TextureFont::FormatFontPages()
 	}
 	m_Characters.clear();
 	
-	m_sError = m_sWarnings = "";
+	m_sError = m_sWarnings = L"";
 
 	/*
 	 * Create the system font.
 	 */
 	LOGFONT font;
 	memset( &font, 0, sizeof(font) );
-	strncpy( &font.lfFaceName[0], (const char *) m_sFamily, 31 );
+	{
+		strncpy( &font.lfFaceName[0], (const char *)CString(m_sFamily.c_str()), 31 );
+	}
 	font.lfFaceName[31] = 0;
 	font.lfCharSet = DEFAULT_CHARSET;
 	if( m_bBold )
@@ -57,7 +61,7 @@ void TextureFont::FormatFontPages()
 	HFONT hFont = CreateFontIndirect( &font );
 	if( hFont == NULL )
 	{
-		m_sError = "Font isn't available";
+		m_sError = L"Font isn't available";
 		return;
 	}
 
@@ -378,18 +382,18 @@ static bool IsNumberChar( wchar_t c )
 	return c >= 0x0030  &&  c <= 0x0039;
 }
 
-void TextureFont::Save( CString sBasePath, CString sBitmapAppendBeforeExtension, bool bSaveMetrics, bool bSaveBitmaps, bool bExportStrokeTemplates )
+void TextureFont::Save( wstring sBasePath, wstring sBitmapAppendBeforeExtension, bool bSaveMetrics, bool bSaveBitmaps, bool bExportStrokeTemplates )
 {
-	if( m_sError != "" )
+	if( m_sError != L"" )
 		return;
 
-	const CString inipath = sBasePath + ".ini";
+	const wstring inipath = sBasePath + L".ini";
 
 	ofstream f;
 
 	if( bSaveMetrics )
 	{
-		f.open(inipath.GetString());
+		f.open(inipath.c_str());
 
 		/* Write global properties: */
 		f << "[common]\n";
@@ -410,7 +414,7 @@ void TextureFont::Save( CString sBasePath, CString sBitmapAppendBeforeExtension,
 
 		if( bSaveMetrics )
 		{
-			f << "\n" << "[" << desc.name.GetString() << "]\n";
+			f << "\n" << "[" << NarrowString(desc.name) << "]\n";
 
 			{
 				int iWidth = 1;
@@ -457,7 +461,7 @@ void TextureFont::Save( CString sBasePath, CString sBitmapAppendBeforeExtension,
 			{
 				const wchar_t c = desc.chars[j];
 				int iCharWidth = viCharWidth[j];
-				if( desc.name == "numbers"  &&  IsNumberChar( c ) )
+				if( desc.name == L"numbers"  &&  IsNumberChar( c ) )
 					iCharWidth = iMaxNumberCharWidth;
 				f << j << "=" << iCharWidth << "\n";
 			}
@@ -472,7 +476,7 @@ void TextureFont::Save( CString sBasePath, CString sBitmapAppendBeforeExtension,
 
 			for( int j=0; j<2; j++ )
 			{
-				CString sPageName = m_PagesToGenerate[i].name.GetString();
+				wstring sPageName = m_PagesToGenerate[i].name;
 				switch( j )
 				{
 				case 0:
@@ -480,21 +484,18 @@ void TextureFont::Save( CString sBasePath, CString sBitmapAppendBeforeExtension,
 				case 1:
 					if( !bExportStrokeTemplates )
 						continue;
-					sPageName += "-stroke";
+					sPageName += L"-stroke";
 					break;
 				default:
 					assert(false);
 				}
 
-				CString sFile;
-				sFile.Format( "%s [%s] %ix%i%s.png",
-					sBasePath.GetString(),
-					sPageName.GetString(),
-					m_apPages[i]->m_iNumFramesX,
-					m_apPages[i]->m_iNumFramesY,
-					sBitmapAppendBeforeExtension.GetString() );
+				std::wostringstream fns;
+				
+				fns << sBasePath << L" [" << sPageName << "] " << m_apPages[i]->m_iNumFramesX << "x" << m_apPages[i]->m_iNumFramesY << sBitmapAppendBeforeExtension << L".png";
 
-				FILE *f = fopen( sFile, "w+b" );
+
+				FILE *f = fopen( NarrowString(fns.str()).c_str(), "w+b" );
 				char szErrorbuf[1024];
 				SavePNG( f, szErrorbuf, &surf );
 				fclose( f );

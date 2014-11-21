@@ -46,7 +46,10 @@ protected:
 	bool isItalic();
 	bool isAntialiased();
 	bool isNumbersOnly();
-	CString getFamily();
+	bool exportsStrokeTemplates();
+	bool doubleRes();
+
+	wstring getFamily();
 	float getFontSizePixels();
 	int getPadding();
 

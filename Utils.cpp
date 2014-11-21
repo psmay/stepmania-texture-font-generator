@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "Utils.h"
 
+#include <locale>
+#include <codecvt>
+
 Surface::Surface( const Surface &cpy )
 {
 	iWidth = cpy.iWidth;
@@ -191,6 +194,12 @@ bool SavePNG( FILE *f, char szErrorbuf[1024], const Surface *pSurf )
 	png_destroy_write_struct( &pPng, &pInfo );
 
 	return true;
+}
+
+std::string NarrowString(const std::wstring & input)
+{
+	std::wstring_convert<std::codecvt_utf8<wchar_t>> cvt;
+	return cvt.to_bytes(input);
 }
 
 /*
